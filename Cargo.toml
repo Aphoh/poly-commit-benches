@@ -1,0 +1,24 @@
+[package]
+name = "poly-commit-benches"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ark-poly-commit = "0.3"
+ark-bls12-381 = "0.3"
+ark-bn254 = "0.3"
+ark-poly = "0.3"
+ark-ec = "0.3"
+ark-std = "0.3"
+ark-ff = "0.3"
+rand = "0.8"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "kzg_libs"
+harness = false
+
