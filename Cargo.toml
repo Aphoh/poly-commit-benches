@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 ark-poly-commit = "0.3"
 ark-bls12-381 = "0.3"
+ark-bls12-377 = "0.3"
 ark-bn254 = "0.3"
 ark-poly = "0.3"
 ark-ec = "0.3"

@@ -1,6 +1,7 @@
 pub mod ark;
 
-pub const MAX_DEG: u32 = 100;
+pub const LOG_MAX_DEG: usize = 12;
+pub const MAX_DEG: usize = 2usize.pow(LOG_MAX_DEG as u32);
 
 pub trait Bench {
     type Setup;
