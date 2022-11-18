@@ -1,7 +1,7 @@
 pub mod ark;
-
-pub const LOG_MAX_DEG: usize = 12;
-pub const MAX_DEG: usize = 2usize.pow(LOG_MAX_DEG as u32);
+pub mod plonk_kzg;
+pub(crate) use ark_std::test_rng;
+pub(crate) use rand::rngs::StdRng;
 
 pub trait Bench {
     type Setup;
@@ -12,9 +12,9 @@ pub trait Bench {
     type Proof;
     fn setup(max_degree: usize) -> Self::Setup;
     fn trim(s: &Self::Setup, supported_degree: usize) -> Self::Trimmed;
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> Self::Poly;
-    fn eval_poly(poly: &Self::Poly, pt: &Self::Point) -> Self::Point;
-    fn rand_point(s: &mut Self::Setup) -> Self::Point;
+    // Random (p, z, p(z))
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point);
+    fn bytes_per_elem() -> usize;
     fn commit(t: &Self::Trimmed, s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit;
     fn open(
         t: &Self::Trimmed,
@@ -24,8 +24,8 @@ pub trait Bench {
     ) -> Self::Proof;
     fn verify(
         t: &Self::Trimmed,
-        c: Self::Commit,
-        proof: Self::Proof,
+        c: &Self::Commit,
+        proof: &Self::Proof,
         value: &Self::Point,
         pt: &Self::Point,
     ) -> bool;
@@ -33,12 +33,12 @@ pub trait Bench {
 
 #[cfg(test)]
 fn test_works<T: Bench>() {
-    let mut s = T::setup(100);
-    let t = T::trim(&s, 50);
-    let poly = T::rand_poly(&mut s, 50);
+    const BASE_DEG: usize = 2usize.pow(8);
+    const TRIM_DEG: usize = 2usize.pow(6);
+    let mut s = T::setup(BASE_DEG);
+    let t = T::trim(&s, TRIM_DEG);
+    let (poly, point, value) = T::rand_poly(&mut s, TRIM_DEG);
     let c = T::commit(&t, &mut s, &poly);
-    let pt = T::rand_point(&mut s);
-    let p = T::open(&t, &mut s, &poly, &pt);
-    let value = T::eval_poly(&poly, &pt);
-    assert!(T::verify(&t, c, p, &value, &pt));
+    let p = T::open(&t, &mut s, &poly, &point);
+    assert!(T::verify(&t, &c, &p, &value, &point));
 }

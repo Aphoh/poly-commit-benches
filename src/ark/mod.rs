@@ -2,8 +2,7 @@ use ark_ec::PairingEngine;
 use ark_ff::Field;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::{Polynomial, UVPolynomial};
-use ark_poly_commit::{LabeledCommitment, PolynomialCommitment, LabeledPolynomial, PCRandomness};
-use ark_std::test_rng;
+use ark_poly_commit::{LabeledCommitment, LabeledPolynomial, PCRandomness, PolynomialCommitment};
 use rand::rngs::StdRng;
 use std::marker::PhantomData;
 
@@ -33,7 +32,7 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> Bench for ArkBench<F, PC> {
     type Proof = (PC::Proof, Self::Point);
 
     fn setup(max_degree: usize) -> Self::Setup {
-        let mut rng = test_rng();
+        let mut rng = crate::test_rng();
         let params = PC::setup(max_degree, None, &mut rng).expect("Failed to init bls kzg");
 
         Setup { params, rng }
@@ -43,16 +42,15 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> Bench for ArkBench<F, PC> {
         PC::trim(&s.params, supported_degree, 0, None).expect("Failed to trim")
     }
 
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> Self::Poly {
-        Self::Poly::rand(d, &mut s.rng)
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point) {
+        let poly = Self::Poly::rand(d, &mut s.rng);
+        let pt = Self::Point::rand(&mut s.rng);
+        let value = poly.evaluate(&pt);
+        (poly, pt, value)
     }
 
-    fn eval_poly(poly: &Self::Poly, pt: &Self::Point) -> Self::Point {
-        poly.evaluate(pt)
-    }
-
-    fn rand_point(s: &mut Self::Setup) -> Self::Point {
-        Self::Point::rand(&mut s.rng)
+    fn bytes_per_elem() -> usize {
+        F::one().serialized_size()
     }
 
     fn commit(t: &Self::Trimmed, _s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit {
@@ -87,12 +85,12 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> Bench for ArkBench<F, PC> {
 
     fn verify(
         t: &Self::Trimmed,
-        c: Self::Commit,
-        proof: Self::Proof,
+        c: &Self::Commit,
+        proof: &Self::Proof,
         value: &Self::Point,
         pt: &Self::Point,
     ) -> bool {
-        PC::check(&t.1, &[c], pt, [value.clone()], &proof.0, proof.1, None)
+        PC::check(&t.1, &[c.clone()], pt, [value.clone()], &proof.0, proof.1, None)
             .expect("Proof verification failed")
     }
 }
@@ -110,5 +108,15 @@ mod test {
     #[test]
     fn test_bn254_marlin() {
         test_works::<marlin::MarlinBn254Bench>();
+    }
+
+    #[test]
+    fn test_bls12_381_ser_size() {
+        assert_eq!(marlin::MarlinBls12_381Bench::bytes_per_elem(), 32);
+    }
+
+    #[test]
+    fn test_bn254_ser_size() {
+        assert_eq!(marlin::MarlinBn254Bench::bytes_per_elem(), 32);
     }
 }
