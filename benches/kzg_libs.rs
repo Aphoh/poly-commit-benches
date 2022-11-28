@@ -1,56 +1,97 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{
+    criterion_group, criterion_main, measurement::Measurement, BenchmarkGroup, BenchmarkId,
+    Criterion, Throughput,
+};
 use poly_commit_benches::{
     ark::marlin::{MarlinBls12_377Bench, MarlinBls12_381Bench, MarlinBn254Bench},
     plonk_kzg::PlonkKZG,
     Bench,
 };
 
-const LOG_MAX_DEG: usize = 12;
+const LOG_MIN_DEG: usize = 5;
+const LOG_MAX_DEG: usize = 16;
 const MAX_DEG: usize = 2usize.pow(LOG_MAX_DEG as u32);
 
-pub fn ark_marlin_bls12_381(c: &mut Criterion) {
-    do_bench::<MarlinBls12_381Bench>(c, "ark_marlin_bls12_381");
+pub fn open_bench(c: &mut Criterion) {
+    let mut group = c.benchmark_group("open");
+    do_open_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
+    do_open_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
+    do_open_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_open_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
-pub fn ark_marlin_bls12_377(c: &mut Criterion) {
-    do_bench::<MarlinBls12_377Bench>(c, "ark_marlin_bls12_377");
+pub fn commit_bench(c: &mut Criterion) {
+    let mut group = c.benchmark_group("commit");
+    do_commit_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
+    do_commit_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
+    do_commit_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_commit_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
-pub fn ark_marlin_bn254(c: &mut Criterion) {
-    do_bench::<MarlinBn254Bench>(c, "ark_marlin_bn254");
+pub fn verify_bench(c: &mut Criterion) {
+    let mut group = c.benchmark_group("verify");
+    do_verify_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
+    do_verify_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
+    do_verify_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_verify_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
-pub fn plonk_kzg_bls12_381(c: &mut Criterion) {
-    do_bench::<PlonkKZG>(c, "plonk_kzg_bls12_381");
-}
-
-pub fn do_bench<B: Bench>(c: &mut Criterion, base_name: &str) {
-    let mut group = c.benchmark_group(base_name);
+pub fn do_open_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
     let mut setup = B::setup(MAX_DEG.try_into().unwrap());
-    for s in (3..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
-        group.throughput(throughput::<B>(s));
-
+    for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
+        g.throughput(throughput::<B>(s));
         let trim = B::trim(&setup, s);
-        let (poly, point, value) = B::rand_poly(&mut setup, s);
-        group.bench_with_input(BenchmarkId::new("commit", s), &s, |b, &_| {
-            b.iter(|| {
-                B::commit(&trim, &mut setup, &poly);
-            })
-        });
-        group.bench_with_input(BenchmarkId::new("open", s), &s, |b, &_| {
-            b.iter(|| {
-                B::open(&trim, &mut setup, &poly, &point);
-            })
-        });
-        let commit = B::commit(&trim, &mut setup, &poly);
-        let open = B::open(&trim, &mut setup, &poly, &point);
-        group.bench_with_input(BenchmarkId::new("verify", s), &s, |b, &_| {
-            b.iter(|| {
-                B::verify(&trim, &commit, &open, &value, &point);
-            })
-        });
+        let (poly, point, _) = B::rand_poly(&mut setup, s);
+        g.bench_with_input(
+            BenchmarkId::new(format!("{}_{}", suite_name, "open"), s),
+            &s,
+            |b, &_| {
+                b.iter(|| {
+                    B::open(&trim, &mut setup, &poly, &point);
+                })
+            },
+        );
     }
 }
+
+pub fn do_commit_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
+    let mut setup = B::setup(MAX_DEG.try_into().unwrap());
+    for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
+        g.throughput(throughput::<B>(s));
+        let trim = B::trim(&setup, s);
+        let (poly, _, _) = B::rand_poly(&mut setup, s);
+        g.bench_with_input(
+            BenchmarkId::new(format!("{}_{}", suite_name, "commit"), s),
+            &s,
+            |b, &_| {
+                b.iter(|| {
+                    B::commit(&trim, &mut setup, &poly);
+                })
+            },
+        );
+    }
+}
+
+pub fn do_verify_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
+    let mut setup = B::setup(MAX_DEG.try_into().unwrap());
+    for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
+        g.throughput(throughput::<B>(s));
+        let trim = B::trim(&setup, s);
+        let (poly, point, value) = B::rand_poly(&mut setup, s);
+        let commit = B::commit(&trim, &mut setup, &poly);
+        let open = B::open(&trim, &mut setup, &poly, &point);
+        g.bench_with_input(
+            BenchmarkId::new(format!("{}_{}", suite_name, "verify"), s),
+            &s,
+            |b, &_| {
+                b.iter(|| {
+                    B::verify(&trim, &commit, &open, &value, &point);
+                })
+            },
+        );
+    }
+}
+
 
 fn throughput<B: Bench>(poly_deg: usize) -> Throughput {
     let a = (poly_deg + 1) * (B::bytes_per_elem() - 1);
@@ -59,9 +100,8 @@ fn throughput<B: Bench>(poly_deg: usize) -> Throughput {
 
 criterion_group!(
     benches,
-    plonk_kzg_bls12_381,
-    ark_marlin_bls12_381,
-    ark_marlin_bls12_377,
-    ark_marlin_bn254,
+    open_bench,
+    commit_bench,
+    verify_bench,
 );
 criterion_main!(benches);
