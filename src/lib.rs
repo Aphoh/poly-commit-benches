@@ -12,7 +12,7 @@ pub trait Bench {
     type Proof;
     fn setup(max_degree: usize) -> Self::Setup;
     fn trim(s: &Self::Setup, supported_degree: usize) -> Self::Trimmed;
-    // Random (p, z, p(z))
+    // Random (poly, z, poly(z))
     fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point);
     fn bytes_per_elem() -> usize;
     fn commit(t: &Self::Trimmed, s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit;
@@ -29,6 +29,15 @@ pub trait Bench {
         value: &Self::Point,
         pt: &Self::Point,
     ) -> bool;
+}
+
+pub trait ErasureEncodeBench {
+    type Domain;
+    type Points;
+   
+    fn make_domain(size: usize) -> Self::Domain;
+    fn rand_points(size: usize) -> Self::Points;
+    fn erasure_encode(pts: &mut Self::Points, sub_domain: &Self::Domain, big_domain: &Self::Domain);
 }
 
 #[cfg(test)]

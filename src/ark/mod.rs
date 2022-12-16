@@ -9,6 +9,8 @@ use std::marker::PhantomData;
 use crate::Bench;
 
 pub mod marlin;
+pub mod fft_bench;
+
 pub type Poly<F> = DensePolynomial<F>;
 pub type Trimmed<F, PC> = (
     <PC as PolynomialCommitment<F, Poly<F>>>::CommitterKey,

@@ -1,14 +1,44 @@
-use crate::Bench;
+use crate::{Bench, ErasureEncodeBench};
 
 use dusk_plonk::{
     commitment_scheme::{
         kzg10::{commitment::Commitment, proof::Proof},
         PublicParameters,
     },
-    fft::Polynomial,
+    fft::{EvaluationDomain, Polynomial},
     prelude::{BlsScalar, CommitKey, OpeningKey},
 };
+use rand::thread_rng;
 pub struct PlonkKZG;
+
+impl ErasureEncodeBench for PlonkKZG {
+    type Domain = EvaluationDomain;
+    type Points = Vec<BlsScalar>;
+
+    fn make_domain(size: usize) -> Self::Domain {
+        EvaluationDomain::new(size).expect("Failed to make evaluation domain")
+    }
+
+    fn rand_points(size: usize) -> Self::Points {
+        (0..size)
+            .map(|_| BlsScalar::random(&mut thread_rng()))
+            .collect()
+    }
+
+    fn erasure_encode(
+        pts: &mut Self::Points,
+        sub_domain: &Self::Domain,
+        big_domain: &Self::Domain,
+    ) {
+        assert_eq!(sub_domain.size(), pts.len());
+        assert_eq!(big_domain.size() % sub_domain.size(), 0);
+        sub_domain.ifft_in_place(pts);
+        pts.resize(big_domain.size(), BlsScalar::zero());
+        // Annoyingly, fft in place is not exposed...
+        let res = big_domain.fft(&pts);
+        pts.copy_from_slice(&res);
+    }
+}
 
 impl Bench for PlonkKZG {
     type Setup = (PublicParameters, crate::StdRng);
