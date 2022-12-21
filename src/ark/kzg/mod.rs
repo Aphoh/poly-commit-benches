@@ -503,7 +503,7 @@ mod tests {
 
         let max_degree = N - 1; // Length 4 poly
         let pp = KZG_Bls12_381::setup(max_degree, false, rng).unwrap();
-        let (powers, _) = KZG_Bls12_381::trim(&pp, max_degree).unwrap();
+        let (powers, vk) = KZG_Bls12_381::trim(&pp, max_degree).unwrap();
         let domain_n = <Radix2EvaluationDomain<Fr>>::new(N).expect("Failed to make N domain");
         let domain_2n = <Radix2EvaluationDomain<Fr>>::new(2 * N).expect("Failed to make 2N domain");
 
@@ -514,16 +514,23 @@ mod tests {
             }
         }
         // commit along rows before extending
-        let mut commits = grid
+        let (mut commits, mut col0_opens): (Vec<_>, Vec<_>) = grid
             .iter()
             .map(|row| {
                 let coeffs = domain_n.ifft(&row);
-                KZG10::commit(&powers, &DensePoly { coeffs })
-                    .expect("Failed to commit to poly")
-                    .0
-                    .into_projective()
+                let poly = DensePoly { coeffs };
+                (
+                    KZG10::commit(&powers, &poly)
+                        .expect("Failed to commit to poly")
+                        .0
+                        .into_projective(),
+                    KZG10::open(&powers, &poly, domain_n.element(0))
+                        .expect("Failed to open")
+                        .w
+                        .into_projective(),
+                )
             })
-            .collect::<Vec<_>>();
+            .unzip();
 
         // Extend grid elements column wise
         let mut extended_grid = vec![vec![Fr::zero(); N]; 2 * N];
@@ -541,13 +548,25 @@ mod tests {
         domain_n.ifft_in_place(&mut commits);
         domain_2n.fft_in_place(&mut commits);
 
+        // Extend openings
+        domain_n.ifft_in_place(&mut col0_opens);
+        domain_2n.fft_in_place(&mut col0_opens);
+
         // Check commitments
         for i in 0..extended_grid.len() {
             let coeffs = domain_n.ifft(&extended_grid[i]);
             let res_commit = KZG10::commit(&powers, &DensePoly { coeffs }).expect("Failed commit");
-            assert_eq!(res_commit.0, commits[i].into_affine())
+            assert_eq!(res_commit.0, commits[i].into_affine());
+            assert!(<KZG10<Bls12_381, DensePoly<Fr>>>::check(
+                &vk,
+                &res_commit,
+                domain_n.element(0),
+                extended_grid[i][0],
+                &Proof {
+                    w: col0_opens[i].into_affine()
+                },
+            )
+            .expect("Failed to check"));
         }
-
-
     }
 }
