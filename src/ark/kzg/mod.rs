@@ -53,11 +53,7 @@ where
 {
     /// Constructs public parameters when given as input the maximum degree `degree`
     /// for the polynomial commitment scheme.
-    pub fn setup<R: RngCore>(
-        max_degree: usize,
-        produce_g2_powers: bool,
-        rng: &mut R,
-    ) -> Result<UniversalParams<E>, Error> {
+    pub fn setup<R: RngCore>(max_degree: usize, rng: &mut R) -> Result<UniversalParams<E>, Error> {
         if max_degree < 1 {
             return Err(Error::DegreeIsZero);
         }
@@ -116,6 +112,35 @@ where
             prepared_beta_h,
         };
         Ok(pp)
+    }
+
+    /// Specializes the public parameters for a given maximum degree `d` for polynomials
+    /// `d` should be less that `pp.max_degree()`.
+    pub fn trim(
+        pp: &UniversalParams<E>,
+        mut supported_degree: usize,
+    ) -> Result<(Powers<E>, VerifierKey<E>), Error> {
+        if supported_degree == 1 {
+            supported_degree += 1;
+        }
+        let powers_of_g = pp.powers_of_g[..=supported_degree].to_vec();
+        let powers_of_gamma_g = (0..=supported_degree)
+            .map(|i| pp.powers_of_gamma_g[&i])
+            .collect();
+
+        let powers = Powers {
+            powers_of_g,
+            powers_of_gamma_g,
+        };
+        let vk = VerifierKey {
+            g: pp.powers_of_g[0],
+            gamma_g: pp.powers_of_gamma_g[&0],
+            h: pp.h,
+            beta_h: pp.beta_h,
+            prepared_h: pp.prepared_h.clone(),
+            prepared_beta_h: pp.prepared_beta_h.clone(),
+        };
+        Ok((powers, vk))
     }
 
     /// Outputs a commitment to `polynomial`.
@@ -301,7 +326,6 @@ mod tests {
     use ark_bls12_377::Bls12_377;
     use ark_bls12_381::Bls12_381;
     use ark_bls12_381::Fr;
-    use ark_bls12_381::G1Projective;
     use ark_ec::PairingEngine;
     use ark_poly::univariate::DensePolynomial as DensePoly;
     use ark_poly::EvaluationDomain;
@@ -313,37 +337,6 @@ mod tests {
     type UniPoly_381 = DensePoly<<Bls12_381 as PairingEngine>::Fr>;
     type UniPoly_377 = DensePoly<<Bls12_377 as PairingEngine>::Fr>;
     type KZG_Bls12_381 = KZG10<Bls12_381, UniPoly_381>;
-
-    impl<E: PairingEngine, P: UVPolynomial<E::Fr>> KZG10<E, P> {
-        /// Specializes the public parameters for a given maximum degree `d` for polynomials
-        /// `d` should be less that `pp.max_degree()`.
-        pub(crate) fn trim(
-            pp: &UniversalParams<E>,
-            mut supported_degree: usize,
-        ) -> Result<(Powers<E>, VerifierKey<E>), Error> {
-            if supported_degree == 1 {
-                supported_degree += 1;
-            }
-            let powers_of_g = pp.powers_of_g[..=supported_degree].to_vec();
-            let powers_of_gamma_g = (0..=supported_degree)
-                .map(|i| pp.powers_of_gamma_g[&i])
-                .collect();
-
-            let powers = Powers {
-                powers_of_g: ark_std::borrow::Cow::Owned(powers_of_g),
-                powers_of_gamma_g: ark_std::borrow::Cow::Owned(powers_of_gamma_g),
-            };
-            let vk = VerifierKey {
-                g: pp.powers_of_g[0],
-                gamma_g: pp.powers_of_gamma_g[&0],
-                h: pp.h,
-                beta_h: pp.beta_h,
-                prepared_h: pp.prepared_h.clone(),
-                prepared_beta_h: pp.prepared_beta_h.clone(),
-            };
-            Ok((powers, vk))
-        }
-    }
 
     #[test]
     fn add_commitments_test() {
@@ -360,7 +353,7 @@ mod tests {
         f_p += (f, &p);
 
         let degree = 4;
-        let pp = KZG_Bls12_381::setup(degree, false, rng).unwrap();
+        let pp = KZG_Bls12_381::setup(degree, rng).unwrap();
         let (powers, _) = KZG_Bls12_381::trim(&pp, degree).unwrap();
 
         let comm = KZG10::commit(&powers, &p).unwrap();
@@ -383,7 +376,7 @@ mod tests {
             while degree <= 1 {
                 degree = usize::rand(rng) % 20;
             }
-            let pp = KZG10::<E, P>::setup(degree, false, rng)?;
+            let pp = KZG10::<E, P>::setup(degree, rng)?;
             let (ck, vk) = KZG10::<E, P>::trim(&pp, degree)?;
             let p = P::rand(degree, rng);
             let comm = KZG10::<E, P>::commit(&ck, &p)?;
@@ -409,7 +402,7 @@ mod tests {
         let rng = &mut test_rng();
         for _ in 0..100 {
             let degree = 50;
-            let pp = KZG10::<E, P>::setup(degree, false, rng)?;
+            let pp = KZG10::<E, P>::setup(degree, rng)?;
             let (ck, vk) = KZG10::<E, P>::trim(&pp, 2)?;
             let p = P::rand(1, rng);
             let comm = KZG10::<E, P>::commit(&ck, &p)?;
@@ -438,7 +431,7 @@ mod tests {
             while degree <= 1 {
                 degree = usize::rand(rng) % 20;
             }
-            let pp = KZG10::<E, P>::setup(degree, false, rng)?;
+            let pp = KZG10::<E, P>::setup(degree, rng)?;
             let (ck, vk) = KZG10::<E, P>::trim(&pp, degree)?;
             let mut comms = Vec::new();
             let mut values = Vec::new();
@@ -488,7 +481,7 @@ mod tests {
         let rng = &mut test_rng();
 
         let max_degree = 123;
-        let pp = KZG_Bls12_381::setup(max_degree, false, rng).unwrap();
+        let pp = KZG_Bls12_381::setup(max_degree, rng).unwrap();
         let (powers, _) = KZG_Bls12_381::trim(&pp, max_degree).unwrap();
 
         let p = DensePoly::<Fr>::rand(max_degree + 1, rng);
@@ -502,7 +495,7 @@ mod tests {
         let rng = &mut test_rng();
 
         let max_degree = N - 1; // Length 4 poly
-        let pp = KZG_Bls12_381::setup(max_degree, false, rng).unwrap();
+        let pp = KZG_Bls12_381::setup(max_degree, rng).unwrap();
         let (powers, vk) = KZG_Bls12_381::trim(&pp, max_degree).unwrap();
         let domain_n = <Radix2EvaluationDomain<Fr>>::new(N).expect("Failed to make N domain");
         let domain_2n = <Radix2EvaluationDomain<Fr>>::new(2 * N).expect("Failed to make 2N domain");

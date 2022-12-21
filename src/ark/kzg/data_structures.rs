@@ -5,7 +5,6 @@ use ark_ff::{PrimeField, ToBytes, ToConstraintField, Zero, Field};
 use ark_poly_commit::{PCUniversalParams, PCCommitment, PCProof};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::{
-    borrow::Cow,
     io::{Read, Write},
     ops::AddAssign,
 };
@@ -132,14 +131,14 @@ impl<E: PairingEngine> CanonicalDeserialize for UniversalParams<E> {
 /// `Powers` is used to commit to and create evaluation proofs for a given
 /// polynomial.
 #[derive(Clone, Debug)]
-pub struct Powers<'a, E: PairingEngine> {
+pub struct Powers<E: PairingEngine> {
     /// Group elements of the form `β^i G`, for different values of `i`.
-    pub powers_of_g: Cow<'a, [E::G1Affine]>,
+    pub powers_of_g: Vec<E::G1Affine>,
     /// Group elements of the form `β^i γG`, for different values of `i`.
-    pub powers_of_gamma_g: Cow<'a, [E::G1Affine]>,
+    pub powers_of_gamma_g: Vec<E::G1Affine>,
 }
 
-impl<E: PairingEngine> Powers<'_, E> {
+impl<E: PairingEngine> Powers< E> {
     /// The number of powers in `self`.
     pub fn size(&self) -> usize {
         self.powers_of_g.len()

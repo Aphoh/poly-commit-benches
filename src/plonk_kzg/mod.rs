@@ -1,4 +1,4 @@
-use crate::Bench;
+use crate::PcBench;
 
 use dusk_plonk::{
     commitment_scheme::{
@@ -13,7 +13,7 @@ pub mod enc_bench;
 
 pub struct PlonkKZG;
 
-impl Bench for PlonkKZG {
+impl PcBench for PlonkKZG {
     type Setup = (PublicParameters, crate::StdRng);
     type Trimmed = (CommitKey, OpeningKey);
     type Poly = Polynomial;

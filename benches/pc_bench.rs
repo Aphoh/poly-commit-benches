@@ -3,13 +3,16 @@ use criterion::{
     Criterion, Throughput,
 };
 use poly_commit_benches::{
-    ark::marlin::{MarlinBls12_377Bench, MarlinBls12_381Bench, MarlinBn254Bench},
+    ark::{
+        kzg_bench::*,
+        marlin_bench::*,
+    },
     plonk_kzg::PlonkKZG,
-    Bench,
+    PcBench,
 };
 
 const LOG_MIN_DEG: usize = 5;
-const LOG_MAX_DEG: usize = 16;
+const LOG_MAX_DEG: usize = 12;
 const MAX_DEG: usize = 2usize.pow(LOG_MAX_DEG as u32);
 
 pub fn open_bench(c: &mut Criterion) {
@@ -17,6 +20,9 @@ pub fn open_bench(c: &mut Criterion) {
     do_open_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
     do_open_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
     do_open_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_open_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
+    do_open_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
+    do_open_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");
     do_open_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
@@ -25,6 +31,9 @@ pub fn commit_bench(c: &mut Criterion) {
     do_commit_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
     do_commit_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
     do_commit_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_commit_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
+    do_commit_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
+    do_commit_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");
     do_commit_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
@@ -33,10 +42,13 @@ pub fn verify_bench(c: &mut Criterion) {
     do_verify_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
     do_verify_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
     do_verify_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
+    do_verify_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
+    do_verify_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
+    do_verify_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");
     do_verify_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381");
 }
 
-pub fn do_open_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
+pub fn do_open_bench<B: PcBench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
     let mut setup = B::setup(MAX_DEG.try_into().unwrap());
     for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
         g.throughput(throughput::<B>(s));
@@ -54,7 +66,10 @@ pub fn do_open_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, su
     }
 }
 
-pub fn do_commit_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
+pub fn do_commit_bench<B: PcBench, M: Measurement>(
+    g: &mut BenchmarkGroup<'_, M>,
+    suite_name: &str,
+) {
     let mut setup = B::setup(MAX_DEG.try_into().unwrap());
     for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
         g.throughput(throughput::<B>(s));
@@ -72,7 +87,10 @@ pub fn do_commit_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, 
     }
 }
 
-pub fn do_verify_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, suite_name: &str) {
+pub fn do_verify_bench<B: PcBench, M: Measurement>(
+    g: &mut BenchmarkGroup<'_, M>,
+    suite_name: &str,
+) {
     let mut setup = B::setup(MAX_DEG.try_into().unwrap());
     for s in (LOG_MIN_DEG..LOG_MAX_DEG).map(|i| 2usize.pow(i as u32)) {
         g.throughput(throughput::<B>(s));
@@ -92,16 +110,10 @@ pub fn do_verify_bench<B: Bench, M: Measurement>(g: &mut BenchmarkGroup<'_, M>, 
     }
 }
 
-
-fn throughput<B: Bench>(poly_deg: usize) -> Throughput {
+fn throughput<B: PcBench>(poly_deg: usize) -> Throughput {
     let a = (poly_deg + 1) * (B::bytes_per_elem() - 1);
     Throughput::Bytes(a as u64)
 }
 
-criterion_group!(
-    benches,
-    open_bench,
-    commit_bench,
-    verify_bench,
-);
+criterion_group!(benches, open_bench, commit_bench, verify_bench,);
 criterion_main!(benches);

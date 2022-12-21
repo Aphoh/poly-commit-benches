@@ -26,7 +26,7 @@ criterion = "0.3"
 asm = ["ark-ff/asm"]
 
 [[bench]]
-name = "kzg_libs"
+name = "pc_bench"
 harness = false
 
 [[bench]]

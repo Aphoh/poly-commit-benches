@@ -3,7 +3,7 @@ pub mod plonk_kzg;
 pub(crate) use ark_std::test_rng;
 pub(crate) use rand::rngs::StdRng;
 
-pub trait Bench {
+pub trait PcBench {
     type Setup;
     type Trimmed;
     type Poly;
@@ -41,7 +41,7 @@ pub trait ErasureEncodeBench {
 }
 
 #[cfg(test)]
-fn test_works<T: Bench>() {
+fn test_works<T: PcBench>() {
     const BASE_DEG: usize = 2usize.pow(8);
     const TRIM_DEG: usize = 2usize.pow(6);
     let mut s = T::setup(BASE_DEG);
