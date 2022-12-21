@@ -1,42 +1,46 @@
 use std::marker::PhantomData;
 
-use ark_ff::FftField;
-use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
+use ark_ff::{FftField, UniformRand};
+use ark_poly::{domain::DomainCoeff, EvaluationDomain, Radix2EvaluationDomain};
 use rand::thread_rng;
 
 use crate::ErasureEncodeBench;
 
-pub type Bls12_381ScalarFftBench = FftFieldBench<ark_bls12_381::Fr>;
-pub type Bls12_377ScalarFftBench = FftFieldBench<ark_bls12_377::Fr>;
-pub type Bn254ScalarFftBench = FftFieldBench<ark_bn254::Fr>;
+pub type Bls12_381ScalarEncBench = ArkEncFieldBench<ark_bls12_381::Fr, ark_bls12_381::Fr>;
+pub type Bls12_381G1EncBench = ArkEncFieldBench<ark_bls12_381::Fr, ark_bls12_381::G1Projective>;
+pub type Bls12_377ScalarEncBench = ArkEncFieldBench<ark_bls12_377::Fr, ark_bls12_377::Fr>;
+pub type Bls12_377G1EncBench = ArkEncFieldBench<ark_bls12_377::Fr, ark_bls12_377::G1Projective>;
+pub type Bn254ScalarEncBench = ArkEncFieldBench<ark_bn254::Fr, ark_bn254::Fr>;
 
-pub struct FftFieldBench<Fr>(PhantomData<Fr>);
+pub struct ArkEncFieldBench<Fr, Dc>(PhantomData<(Fr, Dc)>);
 
-impl<Fr: FftField> ErasureEncodeBench for FftFieldBench<Fr> {
+impl<Fr: FftField, Dc: DomainCoeff<Fr> + UniformRand> ErasureEncodeBench
+    for ArkEncFieldBench<Fr, Dc>
+{
     type Domain = Radix2EvaluationDomain<Fr>;
-    type Points = Vec<Fr>;
+    type Point = Dc;
 
     // Size should be a power of 2 here
     fn make_domain(size: usize) -> Self::Domain {
         Radix2EvaluationDomain::new(size).expect("Failed to construct evaluation domain")
     }
 
-    fn rand_points(size: usize) -> Self::Points {
-        (0..size).map(|_| Fr::rand(&mut thread_rng())).collect()
+    fn rand_points(size: usize) -> Vec<Self::Point> {
+        (0..size).map(|_| Dc::rand(&mut thread_rng())).collect()
     }
 
     // `pts` must be the same size as `sub_domain`
     // The `i`-th point of the input will be the same as the
     // `i * big_domain.size()/sub_domain.size()`-th point of the output
     fn erasure_encode(
-        pts: &mut Self::Points,
+        pts: &mut Vec<Self::Point>,
         sub_domain: &Self::Domain,
         big_domain: &Self::Domain,
     ) {
         assert_eq!(sub_domain.size(), pts.len());
         assert_eq!(sub_domain.size() % sub_domain.size(), 0); // Domain a must divide domain b
         sub_domain.ifft_in_place(pts);
-        pts.resize(big_domain.size(), Fr::zero());
+        pts.resize(big_domain.size(), Dc::zero());
         big_domain.fft_in_place(pts);
     }
 }
@@ -48,9 +52,15 @@ mod tests {
     use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
     use rand::thread_rng;
 
+    use super::*;
+    use crate::test_enc_works;
+
     #[test]
     fn test_interp_bench() {
-        // TODO
+        test_enc_works::<Bls12_377ScalarEncBench>();
+        test_enc_works::<Bls12_381G1EncBench>();
+        test_enc_works::<Bls12_381ScalarEncBench>();
+        test_enc_works::<Bn254ScalarEncBench>();
     }
 
     #[test]

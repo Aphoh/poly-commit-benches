@@ -14,13 +14,22 @@ ark-poly = "0.3"
 ark-ec = "0.3"
 ark-std = "0.3"
 ark-ff = "0.3"
+ark-serialize = "0.3"
 rand = "0.8"
+thiserror = "1"
 dusk-plonk = { git = "https://github.com/Aphoh/plonk", branch = "will-benches", features = ["alloc"] }
 
 [dev-dependencies]
 criterion = "0.3"
 
+[features]
+asm = ["ark-ff/asm"]
+
 [[bench]]
 name = "kzg_libs"
+harness = false
+
+[[bench]]
+name = "enc_bench"
 harness = false
 

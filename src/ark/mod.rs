@@ -9,7 +9,8 @@ use std::marker::PhantomData;
 use crate::Bench;
 
 pub mod marlin;
-pub mod fft_bench;
+pub mod enc_bench;
+pub mod kzg;
 
 pub type Poly<F> = DensePolynomial<F>;
 pub type Trimmed<F, PC> = (
@@ -120,5 +121,11 @@ mod test {
     #[test]
     fn test_bn254_ser_size() {
         assert_eq!(marlin::MarlinBn254Bench::bytes_per_elem(), 32);
+    }
+
+    #[test]
+    fn test_commit_grid_linear_extension() {
+        
+
     }
 }

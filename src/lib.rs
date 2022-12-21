@@ -32,12 +32,12 @@ pub trait Bench {
 }
 
 pub trait ErasureEncodeBench {
-    type Domain;
-    type Points;
+    type Domain: Clone;
+    type Point: Clone;
    
     fn make_domain(size: usize) -> Self::Domain;
-    fn rand_points(size: usize) -> Self::Points;
-    fn erasure_encode(pts: &mut Self::Points, sub_domain: &Self::Domain, big_domain: &Self::Domain);
+    fn rand_points(size: usize) -> Vec<Self::Point>;
+    fn erasure_encode(pts: &mut Vec<Self::Point>, sub_domain: &Self::Domain, big_domain: &Self::Domain);
 }
 
 #[cfg(test)]
@@ -50,4 +50,14 @@ fn test_works<T: Bench>() {
     let c = T::commit(&t, &mut s, &poly);
     let p = T::open(&t, &mut s, &poly, &point);
     assert!(T::verify(&t, &c, &p, &value, &point));
+}
+
+#[cfg(test)]
+fn test_enc_works<T: ErasureEncodeBench>() {
+    let domain_a = T::make_domain(32);
+    let domain_b = T::make_domain(64);
+    let mut pts = T::rand_points(32);
+    assert_eq!(pts.len(), 32);
+    T::erasure_encode(&mut pts, &domain_a, &domain_b);
+    assert_eq!(pts.len(), 64);
 }
