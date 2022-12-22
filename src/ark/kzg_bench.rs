@@ -3,10 +3,11 @@ use std::marker::PhantomData;
 use ark_bls12_377::Bls12_377;
 use ark_bls12_381::Bls12_381;
 use ark_bn254::Bn254;
-use ark_ec::PairingEngine;
+use ark_ec::pairing::Pairing;
+use ark_ff::UniformRand;
 use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_serialize::CanonicalSerialize;
-use ark_std::{test_rng, One, UniformRand};
+use ark_std::{test_rng, One};
 use rand::rngs::StdRng;
 
 use crate::PcBench;
@@ -24,11 +25,11 @@ pub struct Setup<UP> {
 
 pub struct KzgPcBench<E>(PhantomData<E>);
 
-impl<E: PairingEngine> PcBench for KzgPcBench<E> {
+impl<E: Pairing> PcBench for KzgPcBench<E> {
     type Setup = Setup<UniversalParams<E>>;
     type Trimmed = (Powers<E>, VerifierKey<E>);
-    type Poly = DensePolynomial<E::Fr>;
-    type Point = E::Fr;
+    type Poly = DensePolynomial<E::ScalarField>;
+    type Point = E::ScalarField;
     type Commit = Commitment<E>;
     type Proof = Proof<E>;
     fn setup(max_degree: usize) -> Self::Setup {
@@ -45,15 +46,15 @@ impl<E: PairingEngine> PcBench for KzgPcBench<E> {
 
     fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point) {
         let poly = DensePolynomial {
-            coeffs: (0..=d).map(|_| E::Fr::rand(&mut s.rng)).collect(),
+            coeffs: (0..=d).map(|_| E::ScalarField::rand(&mut s.rng)).collect(),
         };
-        let pt = E::Fr::rand(&mut s.rng);
+        let pt = E::ScalarField::rand(&mut s.rng);
         let eval = poly.evaluate(&pt);
         (poly, pt, eval)
     }
 
     fn bytes_per_elem() -> usize {
-        E::Fr::one().serialized_size()
+        E::ScalarField::one().serialized_size(ark_serialize::Compress::Yes)
     }
 
     fn commit(t: &Self::Trimmed, _s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit {

@@ -3,10 +3,7 @@ use criterion::{
     Criterion, Throughput,
 };
 use poly_commit_benches::{
-    ark::{
-        kzg_bench::*,
-        marlin_bench::*,
-    },
+    ark::kzg_bench::*,
     plonk_kzg::PlonkKZG,
     PcBench,
 };
@@ -17,9 +14,6 @@ const MAX_DEG: usize = 2usize.pow(LOG_MAX_DEG as u32);
 
 pub fn open_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("open");
-    do_open_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
-    do_open_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
-    do_open_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
     do_open_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
     do_open_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
     do_open_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");
@@ -28,9 +22,6 @@ pub fn open_bench(c: &mut Criterion) {
 
 pub fn commit_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("commit");
-    do_commit_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
-    do_commit_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
-    do_commit_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
     do_commit_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
     do_commit_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
     do_commit_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");
@@ -39,9 +30,6 @@ pub fn commit_bench(c: &mut Criterion) {
 
 pub fn verify_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("verify");
-    do_verify_bench::<MarlinBls12_377Bench, _>(&mut group, "ark_marlin_bls12_377");
-    do_verify_bench::<MarlinBls12_381Bench, _>(&mut group, "ark_marlin_bls12_381");
-    do_verify_bench::<MarlinBn254Bench, _>(&mut group, "ark_marlin_bn254");
     do_verify_bench::<KzgBls12_377Bench, _>(&mut group, "ark_kzg_bls12_377");
     do_verify_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381");
     do_verify_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254");

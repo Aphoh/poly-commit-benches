@@ -4,14 +4,18 @@
 //! at a chosen point `x`. Our construction follows the template of the construction
 //! proposed by Kate, Zaverucha, and Goldberg ([KZG11](http://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf)).
 //! This construction achieves extractability in the algebraic group model (AGM).
-use ark_ec::msm::{FixedBaseMSM, VariableBaseMSM};
-use ark_ec::{group::Group, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{One, PrimeField, UniformRand, Zero};
-use ark_poly::UVPolynomial;
-use ark_poly_commit::LabeledPolynomial;
-use ark_std::{marker::PhantomData, ops::Div, vec};
+use ark_ec::{
+    pairing::Pairing, scalar_mul::fixed_base::FixedBase, AffineRepr, CurveGroup, VariableBaseMSM,
+};
+use ark_ff::{One, PrimeField, UniformRand};
+use ark_poly::{DenseUVPolynomial, Polynomial};
+use ark_std::{
+    marker::PhantomData,
+    ops::{Div, Mul},
+    vec,
+};
 
-use ark_std::rand::RngCore;
+use ark_std::{ops::AddAssign, rand::RngCore, Zero};
 
 mod data_structures;
 pub use data_structures::*;
@@ -34,21 +38,23 @@ pub enum Error {
         num_coefficients: usize,
         num_powers: usize,
     },
+    #[error("Error in msm")]
+    MSMError,
 }
 
 /// `KZG10` is an implementation of the polynomial commitment scheme of
 /// [Kate, Zaverucha and Goldbgerg][kzg10]
 ///
 /// [kzg10]: http://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf
-pub struct KZG10<E: PairingEngine, P: UVPolynomial<E::Fr>> {
+pub struct KZG10<E: Pairing, P: Polynomial<E::ScalarField>> {
     _engine: PhantomData<E>,
     _poly: PhantomData<P>,
 }
 
 impl<E, P> KZG10<E, P>
 where
-    E: PairingEngine,
-    P: UVPolynomial<E::Fr, Point = E::Fr>,
+    E: Pairing,
+    P: DenseUVPolynomial<E::ScalarField>,
     for<'a, 'b> &'a P: Div<&'b P, Output = P>,
 {
     /// Constructs public parameters when given as input the maximum degree `degree`
@@ -57,12 +63,12 @@ where
         if max_degree < 1 {
             return Err(Error::DegreeIsZero);
         }
-        let beta = E::Fr::rand(rng);
-        let g = E::G1Projective::rand(rng);
-        let gamma_g = E::G1Projective::rand(rng);
-        let h = E::G2Projective::rand(rng);
+        let beta = E::ScalarField::rand(rng);
+        let g = E::G1::rand(rng);
+        let gamma_g = E::G1::rand(rng);
+        let h = E::G2::rand(rng);
 
-        let mut powers_of_beta = vec![E::Fr::one()];
+        let mut powers_of_beta = vec![E::ScalarField::one()];
 
         let mut cur = beta;
         for _ in 0..max_degree {
@@ -70,33 +76,24 @@ where
             cur *= &beta;
         }
 
-        let window_size = FixedBaseMSM::get_mul_window_size(max_degree + 1);
+        let window_size = FixedBase::get_mul_window_size(max_degree + 1);
 
-        let scalar_bits = E::Fr::size_in_bits();
-        let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
-        let powers_of_g = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-            scalar_bits,
-            window_size,
-            &g_table,
-            &powers_of_beta,
-        );
-        let gamma_g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, gamma_g);
-        let mut powers_of_gamma_g = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-            scalar_bits,
-            window_size,
-            &gamma_g_table,
-            &powers_of_beta,
-        );
+        let scalar_bits = E::ScalarField::MODULUS_BIT_SIZE as usize;
+        let g_table = FixedBase::get_window_table(scalar_bits, window_size, g);
+        let powers_of_g =
+            FixedBase::msm::<E::G1>(scalar_bits, window_size, &g_table, &powers_of_beta);
+        let gamma_g_table = FixedBase::get_window_table(scalar_bits, window_size, gamma_g);
+        let mut powers_of_gamma_g =
+            FixedBase::msm::<E::G1>(scalar_bits, window_size, &gamma_g_table, &powers_of_beta);
         // Add an additional power of gamma_g, because we want to be able to support
         // up to D queries.
         powers_of_gamma_g.push(powers_of_gamma_g.last().unwrap().mul(&beta));
 
-        let powers_of_g = E::G1Projective::batch_normalization_into_affine(&powers_of_g);
-        let powers_of_gamma_g =
-            E::G1Projective::batch_normalization_into_affine(&powers_of_gamma_g)
-                .into_iter()
-                .enumerate()
-                .collect();
+        let powers_of_g = E::G1::normalize_batch(&powers_of_g);
+        let powers_of_gamma_g = E::G1::normalize_batch(&powers_of_gamma_g)
+            .into_iter()
+            .enumerate()
+            .collect();
 
         let h = h.into_affine();
         let beta_h = h.mul(beta).into_affine();
@@ -147,13 +144,11 @@ where
     pub fn commit(powers: &Powers<E>, polynomial: &P) -> Result<Commitment<E>, Error> {
         Self::check_degree_is_too_large(polynomial.degree(), powers.size())?;
 
-        let (num_leading_zeros, plain_coeffs) =
-            skip_leading_zeros_and_convert_to_bigints(polynomial);
+        let num_leading_zeros = skip_leading_zeros(polynomial);
 
-        let commitment = VariableBaseMSM::multi_scalar_mul(
-            &powers.powers_of_g[num_leading_zeros..],
-            &plain_coeffs,
-        );
+        let a = &powers.powers_of_g[num_leading_zeros..polynomial.degree() + 1];
+        let b = &polynomial.coeffs()[num_leading_zeros..];
+        let commitment = <E::G1 as VariableBaseMSM>::msm(a, b).map_err(|_| Error::MSMError)?;
 
         Ok(Commitment(commitment.into()))
     }
@@ -164,7 +159,7 @@ where
     /// Observe that this quotient does not change with z because
     /// p(z) is the remainder term. We can therefore omit p(z) when computing the quotient.
     pub fn compute_witness_polynomial(p: &P, point: P::Point) -> Result<P, Error> {
-        let divisor = P::from_coefficients_vec(vec![-point, E::Fr::one()]);
+        let divisor = P::from_coefficients_vec(vec![-point, E::ScalarField::one()]);
 
         let witness_polynomial = p / &divisor;
 
@@ -176,13 +171,12 @@ where
         witness_polynomial: &P,
     ) -> Result<Proof<E>, Error> {
         Self::check_degree_is_too_large(witness_polynomial.degree(), powers.size())?;
-        let (num_leading_zeros, witness_coeffs) =
-            skip_leading_zeros_and_convert_to_bigints(witness_polynomial);
+        let num_leading_zeros = skip_leading_zeros(witness_polynomial);
 
-        let w = VariableBaseMSM::multi_scalar_mul(
-            &powers.powers_of_g[num_leading_zeros..],
-            &witness_coeffs,
-        );
+        let a = &powers.powers_of_g[num_leading_zeros..witness_polynomial.degree() + 1];
+        let b = &witness_polynomial.coeffs()[num_leading_zeros..];
+
+        let w = <E::G1 as VariableBaseMSM>::msm(a, b).map_err(|_| Error::MSMError)?;
 
         Ok(Proof { w: w.into_affine() })
     }
@@ -203,14 +197,14 @@ where
     pub fn check(
         vk: &VerifierKey<E>,
         comm: &Commitment<E>,
-        point: E::Fr,
-        value: E::Fr,
+        point: E::ScalarField,
+        value: E::ScalarField,
         proof: &Proof<E>,
     ) -> Result<bool, Error> {
-        let inner = comm.0.into_projective() - &vk.g.mul(value);
+        let inner = comm.0.into_group() - &vk.g.mul(value);
         let lhs = E::pairing(inner, vk.h);
 
-        let inner = vk.beta_h.into_projective() - &vk.h.mul(point);
+        let inner = vk.beta_h.into_group() - &vk.h.mul(point);
         let rhs = E::pairing(proof.w, inner);
 
         Ok(lhs == rhs)
@@ -221,27 +215,28 @@ where
     pub fn batch_check<R: RngCore>(
         vk: &VerifierKey<E>,
         commitments: &[Commitment<E>],
-        points: &[E::Fr],
-        values: &[E::Fr],
+        points: &[E::ScalarField],
+        values: &[E::ScalarField],
         proofs: &[Proof<E>],
         rng: &mut R,
     ) -> Result<bool, Error> {
-        let mut total_c = <E::G1Projective>::zero();
-        let mut total_w = <E::G1Projective>::zero();
+        let mut total_c = E::G1::zero();
+        let mut total_w = E::G1::zero();
 
-        let mut randomizer = E::Fr::one();
+        let mut randomizer = E::ScalarField::one();
         // Instead of multiplying g and gamma_g in each turn, we simply accumulate
         // their coefficients and perform a final multiplication at the end.
-        let mut g_multiplier = E::Fr::zero();
-        let gamma_g_multiplier = E::Fr::zero();
+        let mut g_multiplier = E::ScalarField::zero();
+        let gamma_g_multiplier = E::ScalarField::zero();
         for (((c, z), v), proof) in commitments.iter().zip(points).zip(values).zip(proofs) {
+            let c = c.0;
             let w = proof.w;
-            let mut temp = w.mul(*z);
-            temp.add_assign_mixed(&c.0);
+            let mut temp: E::G1 = w.mul(*z);
+            temp.add_assign(&c);
             let c = temp;
             g_multiplier += &(randomizer * v);
-            total_c += &c.mul(randomizer.into_repr());
-            total_w += &w.mul(randomizer.into_repr());
+            total_c += &c.mul(randomizer);
+            total_w += &w.mul(randomizer);
             // We don't need to sample randomizers from the full field,
             // only from 128-bit strings.
             randomizer = u128::rand(rng).into();
@@ -249,13 +244,18 @@ where
         total_c -= &vk.g.mul(g_multiplier);
         total_c -= &vk.gamma_g.mul(gamma_g_multiplier);
 
-        let affine_points = E::G1Projective::batch_normalization_into_affine(&[-total_w, total_c]);
+        let affine_points = E::G1::normalize_batch(&[-total_w, total_c]);
         let (total_w, total_c) = (affine_points[0], affine_points[1]);
 
-        let result = E::product_of_pairings(&[
-            (total_w.into(), vk.prepared_beta_h.clone()),
-            (total_c.into(), vk.prepared_h.clone()),
-        ])
+        //let result = E::product_of_pairings(&[
+        //    (total_w.into(), vk.prepared_beta_h.clone()),
+        //    (total_c.into(), vk.prepared_h.clone()),
+        //])
+        let result = E::multi_pairing(
+            [total_w, total_c],
+            [vk.prepared_beta_h.clone(), vk.prepared_h.clone()],
+        )
+        .0
         .is_one();
         Ok(result)
     }
@@ -271,51 +271,14 @@ where
             Ok(())
         }
     }
-
-    pub(crate) fn check_degrees_and_bounds<'a>(
-        supported_degree: usize,
-        max_degree: usize,
-        enforced_degree_bounds: Option<&[usize]>,
-        p: &'a LabeledPolynomial<E::Fr, P>,
-    ) -> Result<(), Error> {
-        if let Some(bound) = p.degree_bound() {
-            let enforced_degree_bounds =
-                enforced_degree_bounds.ok_or(Error::UnsupportedDegreeBound(bound))?;
-
-            if enforced_degree_bounds.binary_search(&bound).is_err() {
-                Err(Error::UnsupportedDegreeBound(bound))
-            } else if bound < p.degree() || bound > max_degree {
-                return Err(Error::IncorrectDegreeBound {
-                    poly_degree: p.degree(),
-                    degree_bound: p.degree_bound().unwrap(),
-                    supported_degree,
-                    label: p.label().to_string(),
-                });
-            } else {
-                Ok(())
-            }
-        } else {
-            Ok(())
-        }
-    }
 }
 
-fn skip_leading_zeros_and_convert_to_bigints<F: PrimeField, P: UVPolynomial<F>>(
-    p: &P,
-) -> (usize, Vec<F::BigInt>) {
+fn skip_leading_zeros<F: PrimeField, P: DenseUVPolynomial<F>>(p: &P) -> usize {
     let mut num_leading_zeros = 0;
     while num_leading_zeros < p.coeffs().len() && p.coeffs()[num_leading_zeros].is_zero() {
         num_leading_zeros += 1;
     }
-    let coeffs = convert_to_bigints(&p.coeffs()[num_leading_zeros..]);
-    (num_leading_zeros, coeffs)
-}
-
-fn convert_to_bigints<F: PrimeField>(p: &[F]) -> Vec<F::BigInt> {
-    let coeffs = ark_std::cfg_iter!(p)
-        .map(|s| s.into_repr())
-        .collect::<Vec<_>>();
-    coeffs
+    num_leading_zeros
 }
 
 #[cfg(test)]
@@ -326,16 +289,16 @@ mod tests {
     use ark_bls12_377::Bls12_377;
     use ark_bls12_381::Bls12_381;
     use ark_bls12_381::Fr;
-    use ark_ec::PairingEngine;
+    use ark_ec::pairing::Pairing;
     use ark_poly::univariate::DensePolynomial as DensePoly;
+    use ark_poly::DenseUVPolynomial;
     use ark_poly::EvaluationDomain;
     use ark_poly::Polynomial;
     use ark_poly::Radix2EvaluationDomain;
-    use ark_poly_commit::PCCommitment;
     use ark_std::test_rng;
 
-    type UniPoly_381 = DensePoly<<Bls12_381 as PairingEngine>::Fr>;
-    type UniPoly_377 = DensePoly<<Bls12_377 as PairingEngine>::Fr>;
+    type UniPoly_381 = DensePoly<<Bls12_381 as Pairing>::ScalarField>;
+    type UniPoly_377 = DensePoly<<Bls12_377 as Pairing>::ScalarField>;
     type KZG_Bls12_381 = KZG10<Bls12_381, UniPoly_381>;
 
     #[test]
@@ -366,8 +329,8 @@ mod tests {
 
     fn end_to_end_test_template<E, P>() -> Result<(), Error>
     where
-        E: PairingEngine,
-        P: UVPolynomial<E::Fr, Point = E::Fr>,
+        E: Pairing,
+        P: DenseUVPolynomial<E::ScalarField, Point = E::ScalarField>,
         for<'a, 'b> &'a P: Div<&'b P, Output = P>,
     {
         let rng = &mut test_rng();
@@ -380,7 +343,7 @@ mod tests {
             let (ck, vk) = KZG10::<E, P>::trim(&pp, degree)?;
             let p = P::rand(degree, rng);
             let comm = KZG10::<E, P>::commit(&ck, &p)?;
-            let point = E::Fr::rand(rng);
+            let point = E::ScalarField::rand(rng);
             let value = p.evaluate(&point);
             let proof = KZG10::<E, P>::open(&ck, &p, point)?;
             assert!(
@@ -395,8 +358,8 @@ mod tests {
 
     fn linear_polynomial_test_template<E, P>() -> Result<(), Error>
     where
-        E: PairingEngine,
-        P: UVPolynomial<E::Fr, Point = E::Fr>,
+        E: Pairing,
+        P: DenseUVPolynomial<E::ScalarField, Point = E::ScalarField>,
         for<'a, 'b> &'a P: Div<&'b P, Output = P>,
     {
         let rng = &mut test_rng();
@@ -406,7 +369,7 @@ mod tests {
             let (ck, vk) = KZG10::<E, P>::trim(&pp, 2)?;
             let p = P::rand(1, rng);
             let comm = KZG10::<E, P>::commit(&ck, &p)?;
-            let point = E::Fr::rand(rng);
+            let point = E::ScalarField::rand(rng);
             let value = p.evaluate(&point);
             let proof = KZG10::<E, P>::open(&ck, &p, point)?;
             assert!(
@@ -421,8 +384,8 @@ mod tests {
 
     fn batch_check_test_template<E, P>() -> Result<(), Error>
     where
-        E: PairingEngine,
-        P: UVPolynomial<E::Fr, Point = E::Fr>,
+        E: Pairing,
+        P: DenseUVPolynomial<E::ScalarField, Point = E::ScalarField>,
         for<'a, 'b> &'a P: Div<&'b P, Output = P>,
     {
         let rng = &mut test_rng();
@@ -440,7 +403,7 @@ mod tests {
             for _ in 0..10 {
                 let p = P::rand(degree, rng);
                 let comm = KZG10::<E, P>::commit(&ck, &p)?;
-                let point = E::Fr::rand(rng);
+                let point = E::ScalarField::rand(rng);
                 let value = p.evaluate(&point);
                 let proof = KZG10::<E, P>::open(&ck, &p, point)?;
 
@@ -516,11 +479,11 @@ mod tests {
                     KZG10::commit(&powers, &poly)
                         .expect("Failed to commit to poly")
                         .0
-                        .into_projective(),
+                        .into_group(),
                     KZG10::open(&powers, &poly, domain_n.element(0))
                         .expect("Failed to open")
                         .w
-                        .into_projective(),
+                        .into_group(),
                 )
             })
             .unzip();
