@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use ark_bls12_377::Bls12_377;
 use ark_bls12_381::Bls12_381;
 use ark_bn254::Bn254;
 use ark_ec::pairing::Pairing;
@@ -14,7 +13,6 @@ use crate::PcBench;
 
 use super::kzg::*;
 
-pub type KzgBls12_377Bench = KzgPcBench<Bls12_377>;
 pub type KzgBls12_381Bench = KzgPcBench<Bls12_381>;
 pub type KzgBn254Bench = KzgPcBench<Bn254>;
 
