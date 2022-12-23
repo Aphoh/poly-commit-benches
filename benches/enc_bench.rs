@@ -13,14 +13,12 @@ pub fn enc_bench(c: &mut Criterion) {
     {
         let mut g_scalar = c.benchmark_group("scalar_enc_bench");
         do_enc_bench::<ark::Bls12_381ScalarEncBench, _>(&mut g_scalar, "ark_bls12_381_scalar");
-        do_enc_bench::<ark::Bls12_377ScalarEncBench, _>(&mut g_scalar, "ark_bls12_377_scalar");
         do_enc_bench::<ark::Bn254ScalarEncBench, _>(&mut g_scalar, "ark_bn_254_scalar");
         do_enc_bench::<PlonkEncBench, _>(&mut g_scalar, "plonk_scalar");
     }
     {
         let mut g_pt = c.benchmark_group("pt_enc_bench");
         do_enc_bench::<ark::Bls12_381G1EncBench, _>(&mut g_pt, "ark_bls12_381_g1");
-        do_enc_bench::<ark::Bls12_377G1EncBench, _>(&mut g_pt, "ark_bls12_377_g1");
     }
 }
 

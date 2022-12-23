@@ -8,8 +8,6 @@ use crate::ErasureEncodeBench;
 
 pub type Bls12_381ScalarEncBench = ArkEncFieldBench<ark_bls12_381::Fr, ark_bls12_381::Fr>;
 pub type Bls12_381G1EncBench = ArkEncFieldBench<ark_bls12_381::Fr, ark_bls12_381::G1Projective>;
-pub type Bls12_377ScalarEncBench = ArkEncFieldBench<ark_bls12_377::Fr, ark_bls12_377::Fr>;
-pub type Bls12_377G1EncBench = ArkEncFieldBench<ark_bls12_377::Fr, ark_bls12_377::G1Projective>;
 pub type Bn254ScalarEncBench = ArkEncFieldBench<ark_bn254::Fr, ark_bn254::Fr>;
 
 pub struct ArkEncFieldBench<Fr, Dc>(PhantomData<(Fr, Dc)>);
@@ -57,7 +55,6 @@ mod tests {
 
     #[test]
     fn test_interp_bench() {
-        test_enc_works::<Bls12_377ScalarEncBench>();
         test_enc_works::<Bls12_381G1EncBench>();
         test_enc_works::<Bls12_381ScalarEncBench>();
         test_enc_works::<Bn254ScalarEncBench>();

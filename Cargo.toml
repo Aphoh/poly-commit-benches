@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 ark-poly-commit = "0.3"
 ark-bls12-381 = "0.3"
-ark-bls12-377 = "0.3"
 ark-bn254 = "0.3"
 ark-poly = "0.3"
 ark-ec = "0.3"
@@ -20,7 +19,8 @@ thiserror = "1"
 dusk-plonk = { git = "https://github.com/Aphoh/plonk", branch = "will-benches", features = ["alloc"] }
 
 [dev-dependencies]
-criterion = "0.3"
+ark-bls12-377 = "0.3"
+criterion = "0.4"
 
 [features]
 asm = ["ark-ff/asm"]
