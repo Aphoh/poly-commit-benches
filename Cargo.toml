@@ -33,3 +33,7 @@ harness = false
 name = "enc_bench"
 harness = false
 
+[[bench]]
+name = "grid_bench"
+harness = false
+

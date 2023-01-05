@@ -51,7 +51,7 @@ impl<E: PairingEngine> PcBench for KzgPcBench<E> {
     }
 
     fn bytes_per_elem() -> usize {
-        E::Fr::one().serialized_size()
+        E::Fr::one().serialized_size() - 1
     }
 
     fn commit(t: &Self::Trimmed, _s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit {

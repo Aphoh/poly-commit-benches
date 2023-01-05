@@ -40,6 +40,20 @@ pub trait ErasureEncodeBench {
     fn erasure_encode(pts: &mut Vec<Self::Point>, sub_domain: &Self::Domain, big_domain: &Self::Domain);
 }
 
+pub trait GridBench {
+    type Setup: Clone;
+    type Grid: Clone;
+    type ExtendedGrid: Clone;
+    type Commits;
+    type Opens;
+    fn do_setup(size: usize) -> Self::Setup;
+    fn rand_grid(size: usize) -> Self::Grid;
+    fn extend_grid(s: &Self::Setup, g: &Self::Grid) -> Self::ExtendedGrid;
+    fn make_commits(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Commits;
+    fn make_opens(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Opens;
+    fn bytes_per_elem() -> usize;
+}
+
 #[cfg(test)]
 fn test_works<T: PcBench>() {
     const BASE_DEG: usize = 2usize.pow(8);

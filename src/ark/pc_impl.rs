@@ -48,7 +48,7 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> PcBench for ArkPcBench<F, P
     }
 
     fn bytes_per_elem() -> usize {
-        F::one().serialized_size()
+        F::one().serialized_size() - 1 // Trim one byte for keeping in modspace
     }
 
     fn commit(t: &Self::Trimmed, _s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit {
