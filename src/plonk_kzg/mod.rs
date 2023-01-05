@@ -10,6 +10,7 @@ use dusk_plonk::{
 };
 
 pub mod enc_bench;
+pub mod grid_bench;
 
 pub struct PlonkKZG;
 
@@ -34,7 +35,7 @@ impl PcBench for PlonkKZG {
     }
 
     fn bytes_per_elem() -> usize {
-        32
+        31
     }
 
     fn commit(t: &Self::Trimmed, _s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit {

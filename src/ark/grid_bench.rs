@@ -8,6 +8,7 @@ use ark_poly::{
 };
 use ark_serialize::CanonicalSerialize;
 use ark_std::{test_rng, Zero};
+use rand::distributions::uniform::SampleRange;
 
 use crate::GridBench;
 
@@ -34,7 +35,7 @@ where
     type Grid = Vec<Vec<E::Fr>>;
     type ExtendedGrid = Vec<Vec<E::Fr>>;
     type Commits = Vec<E::G1Projective>;
-    type Opens = Vec<Vec<E::G1Projective>>;
+    type Opens = Vec<E::G1Projective>;
 
     fn do_setup(size: usize) -> Self::Setup {
         let up = <KZGFor<E>>::setup(size - 1, &mut test_rng()).unwrap();
@@ -92,7 +93,7 @@ where
         commits
     }
 
-    fn make_opens(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Opens {
+    fn open_column(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Opens {
         let n = g.len() / 2;
         // Collect underlying polys
         let polys: Vec<_> = (0..n)
@@ -100,27 +101,21 @@ where
                 coeffs: g[2 * i].clone(),
             })
             .collect();
-        let mut opens: Self::Opens = vec![vec![E::G1Projective::zero(); n]; 2 * n];
-        // for each underlying column
-        for j in 0..n {
-            let pt = s.domain_n.element(j);
-            let mut col_opens = Vec::new();
-            // for each row
-            for i in 0..n {
-                // open at (row, column)
-                let open = <KZGFor<E>>::open(&s.powers, &polys[i], pt)
-                    .expect("Failed to open");
-                col_opens.push(open.w.into_projective());
-            }
-            // fft to get all opens
-            s.domain_n.ifft_in_place(&mut col_opens);
-            s.domain_2n.fft_in_place(&mut col_opens);
-            // copy in to bigger opens matrix
-            for i in 0..col_opens.len() {
-                opens[i][j] = col_opens[i];
-            }
+        let j = (0..n).sample_single(&mut test_rng());
+        let pt = s.domain_n.element(j);
+        let mut col_opens = Vec::new();
+        // for each row
+        for i in 0..n {
+            // open at (row, column)
+            let open = <KZGFor<E>>::open(&s.powers, &polys[i], pt)
+                .expect("Failed to open");
+            col_opens.push(open.w.into_projective());
         }
-        opens
+        // fft to get all opens
+        s.domain_n.ifft_in_place(&mut col_opens);
+        s.domain_2n.fft_in_place(&mut col_opens);
+        // copy in to bigger opens matrix
+        col_opens
     }
 
     fn bytes_per_elem() -> usize {

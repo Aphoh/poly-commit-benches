@@ -50,7 +50,7 @@ pub trait GridBench {
     fn rand_grid(size: usize) -> Self::Grid;
     fn extend_grid(s: &Self::Setup, g: &Self::Grid) -> Self::ExtendedGrid;
     fn make_commits(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Commits;
-    fn make_opens(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Opens;
+    fn open_column(s: &Self::Setup, g: &Self::ExtendedGrid) -> Self::Opens;
     fn bytes_per_elem() -> usize;
 }
 
