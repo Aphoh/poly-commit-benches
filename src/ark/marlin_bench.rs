@@ -28,11 +28,11 @@ mod tests {
 
     #[test]
     fn test_bls12_381_ser_size() {
-        assert_eq!(MarlinBls12_381Bench::bytes_per_elem(), 32);
+        assert_eq!(MarlinBls12_381Bench::bytes_per_elem(), 31);
     }
 
     #[test]
     fn test_bn254_ser_size() {
-        assert_eq!(MarlinBn254Bench::bytes_per_elem(), 32);
+        assert_eq!(MarlinBn254Bench::bytes_per_elem(), 31);
     }
 }
