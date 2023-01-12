@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use ark_ff::Field;
 use ark_poly::{Polynomial, UVPolynomial, univariate::DensePolynomial};
 use ark_poly_commit::{LabeledPolynomial, PCRandomness, PolynomialCommitment, LabeledCommitment};
-use rand::rngs::StdRng;
+use crate::TestRng;
 
 use crate::PcBench;
 
 pub struct Setup<UniversalParams> {
     params: UniversalParams,
-    rng: StdRng,
+    rng: TestRng,
 }
 
 pub type Poly<F> = DensePolynomial<F>;

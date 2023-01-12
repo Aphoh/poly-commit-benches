@@ -7,7 +7,8 @@ use ark_poly::{
     domain::DomainCoeff, univariate::DensePolynomial, EvaluationDomain, Radix2EvaluationDomain,
 };
 use ark_serialize::CanonicalSerialize;
-use ark_std::{test_rng, Zero};
+use ark_std::Zero;
+use crate::test_rng;
 use rand::distributions::uniform::SampleRange;
 
 use crate::GridBench;

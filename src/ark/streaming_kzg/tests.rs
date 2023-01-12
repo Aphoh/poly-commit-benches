@@ -147,7 +147,7 @@ fn test_open_multi_points() {
     use ark_bls12_381_04::{Bls12_381, Fr};
     use ark_poly_04::univariate::DensePolynomial;
     use ark_poly_04::DenseUVPolynomial;
-    use ark_std_04::test_rng;
+    use crate::test_rng;
 
     let max_msm_buffer = 1 << 20;
     let rng = &mut test_rng();

@@ -332,7 +332,7 @@ mod tests {
     use ark_poly::Polynomial;
     use ark_poly::Radix2EvaluationDomain;
     use ark_poly_commit::PCCommitment;
-    use ark_std::test_rng;
+    use crate::test_rng;
 
     type UniPoly_381 = DensePoly<<Bls12_381 as PairingEngine>::Fr>;
     type UniPoly_377 = DensePoly<<Bls12_377 as PairingEngine>::Fr>;

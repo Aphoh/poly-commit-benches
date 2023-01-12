@@ -4,7 +4,8 @@ use ark_ec_04::pairing::Pairing;
 use ark_ff_04::One;
 use ark_poly_04::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 use ark_serialize_04::Compress;
-use ark_std_04::{test_rng, UniformRand};
+use ark_std_04::UniformRand;
+use crate::test_rng;
 
 use crate::PcBench;
 

@@ -15,11 +15,11 @@ pub mod grid_bench;
 pub struct PlonkKZG;
 
 impl PcBench for PlonkKZG {
-    type Setup = (PublicParameters, crate::StdRng);
+    type Setup = (PublicParameters, crate::TestRng);
     type Trimmed = (CommitKey, OpeningKey);
     type Poly = Polynomial;
     type Point = BlsScalar; // This is the i-th root of unity
-    type Eval = BlsScalar; 
+    type Eval = BlsScalar;
     type Commit = Commitment;
     type Proof = Commitment;
     fn setup(max_degree: usize) -> Self::Setup {

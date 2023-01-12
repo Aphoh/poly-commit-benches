@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 
+use crate::{test_rng, TestRng};
 use ark_bls12_381::Bls12_381;
 use ark_bn254::Bn254;
 use ark_ec::PairingEngine;
 use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_serialize::CanonicalSerialize;
-use ark_std::{test_rng, One, UniformRand};
-use rand::rngs::StdRng;
+use ark_std::{One, UniformRand};
 
 use crate::PcBench;
 
@@ -17,7 +17,7 @@ pub type KzgBn254Bench = KzgPcBench<Bn254>;
 
 pub struct Setup<UP> {
     params: UP,
-    rng: StdRng,
+    rng: TestRng,
 }
 
 pub struct KzgPcBench<E>(PhantomData<E>);

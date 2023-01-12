@@ -195,7 +195,7 @@ mod tests {
     use ark_bls12_381_04::Fr;
     use ark_poly_04::polynomial::univariate::DenseOrSparsePolynomial;
     use ark_poly_04::Polynomial;
-    use ark_std_04::test_rng;
+    use crate::test_rng;
 
     use super::*;
     #[test]

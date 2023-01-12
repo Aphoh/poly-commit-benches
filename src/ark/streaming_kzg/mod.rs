@@ -82,13 +82,11 @@
 //! assert!(vk.verify(&commitment, &alpha, &evaluation, &proof).is_ok())
 //! ```
 
-mod data_structures;
 mod time;
 
 use ark_ec_04::AffineRepr;
 use ark_serialize_04::{CanonicalSerialize, Compress};
 use ark_std_04::vec::Vec;
-pub use data_structures::*;
 pub use time::CommitterKey;
 
 #[cfg(test)]
@@ -101,7 +99,7 @@ use ark_std_04::ops::{Add, Mul};
 use ark_std_04::borrow::Borrow;
 use ark_std_04::fmt;
 
-use ark_ec_04::{CurveGroup, VariableBaseMSM, pairing::Pairing};
+use ark_ec_04::{pairing::Pairing, CurveGroup, VariableBaseMSM};
 
 /// A Kate polynomial commitment over a bilinear group, represented as a single \\(\GG_1\\) element.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -204,8 +202,7 @@ impl<E: Pairing> VerifierKey<E> {
         // Computing the vanishing polynomial over eval_points
         let zeros = vanishing_polynomial(eval_points);
         let zeros_repr = zeros.iter().map(|x| x.into_bigint()).collect::<Vec<_>>();
-        let zeros =
-            <E::G2 as VariableBaseMSM>::msm_bigint(&self.powers_of_g2, &zeros_repr);
+        let zeros = <E::G2 as VariableBaseMSM>::msm_bigint(&self.powers_of_g2, &zeros_repr);
 
         // Computing the inverse for the interpolation
         let mut sca_inverse = Vec::new();
@@ -229,7 +226,8 @@ impl<E: Pairing> VerifierKey<E> {
                 if j == k {
                     continue;
                 }
-                let tmp_poly = DensePolynomial::from_coefficients_vec(vec![-(*x_k), E::ScalarField::one()]);
+                let tmp_poly =
+                    DensePolynomial::from_coefficients_vec(vec![-(*x_k), E::ScalarField::one()]);
                 l_poly = l_poly.mul(&tmp_poly);
             }
             lang.push(l_poly);

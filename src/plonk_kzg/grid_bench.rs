@@ -1,4 +1,4 @@
-use ark_std::test_rng;
+use crate::test_rng;
 use dusk_plonk::{
     bls12_381::G1Affine,
     commitment_scheme::kzg10::PublicParameters,

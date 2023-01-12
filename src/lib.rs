@@ -1,7 +1,7 @@
 pub mod ark;
 pub mod plonk_kzg;
-pub(crate) use ark_std::test_rng;
-pub(crate) use rand::rngs::StdRng;
+pub(crate) use rand::thread_rng as test_rng;
+pub(crate) use rand::rngs::ThreadRng as TestRng;
 
 pub trait PcBench {
     type Setup;
