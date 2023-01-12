@@ -48,10 +48,10 @@ impl<E: Pairing> Setup<E> {
         &self,
         polys: &[impl AsRef<[E::ScalarField]>],
         points: &[E::ScalarField],
-        challenge1: E::ScalarField,
-        challenge2: E::ScalarField,
+        gamma: E::ScalarField,
+        chal_z: E::ScalarField,
     ) -> Result<Proof<E>, Error> {
-        let gammas = gen_powers::<E::ScalarField>(challenge1, self.powers_of_g1.len());
+        let gammas = gen_powers::<E::ScalarField>(gamma, self.powers_of_g1.len());
         let gamma_fis = linear_combination::<E::ScalarField>(polys, &gammas)
             .ok_or(Error::NoPolynomialsGiven)?;
         let gamma_fis_poly = DensePolynomial::from_coefficients_vec(gamma_fis);
@@ -63,13 +63,13 @@ impl<E: Pairing> Setup<E> {
 
         let gamma_ri_z = DensePolynomial::from_coefficients_vec(gamma_ris_over_zs)
             .mul(&z_s)
-            .evaluate(&challenge2);
+            .evaluate(&chal_z);
 
-        let f_z = gamma_fis_poly.sub(&DensePolynomial::from_coefficients_vec(vec![gamma_ri_z]));
-        let l = f_z.sub(&DensePolynomial::from_coefficients_vec(h).mul(z_s.evaluate(&challenge2)));
+        let f_z = gamma_fis_poly.sub(&DensePolynomial::from_coefficients_vec(vec![gamma_ri_z])); // XXX
+        let l = f_z.sub(&DensePolynomial::from_coefficients_vec(h).mul(z_s.evaluate(&chal_z)));
 
         let x_minus_z =
-            DensePolynomial::from_coefficients_vec(vec![-challenge2, E::ScalarField::one()]);
+            DensePolynomial::from_coefficients_vec(vec![-chal_z, E::ScalarField::one()]);
         let l_quotient = l.div(&x_minus_z);
 
         let w_2 = super::curve_msm::<E::G1>(&self.powers_of_g1, &l_quotient)?.into_affine();
@@ -82,32 +82,33 @@ impl<E: Pairing> Setup<E> {
         pts: &[E::ScalarField],
         evals: &[impl AsRef<[E::ScalarField]>],
         proof: &Proof<E>,
-        challenge1: E::ScalarField,
-        challenge2: E::ScalarField,
+        gamma: E::ScalarField,
+        chal_z: E::ScalarField,
     ) -> Result<bool, Error> {
         let zeros = vanishing_polynomial(pts);
+        let zeros_z = zeros.evaluate(&chal_z);
 
         // Get the r_i polynomials with lagrange interp. These could be precomputed.
+        let gammas = gen_powers(gamma, evals.len());
         let ri_s = lagrange_interp(evals, pts);
 
-        // Aggregate the r_is and then do a single msm of just the ri's and gammas
-        let gammas = gen_powers(challenge1, evals.len());
+        // Aggregate the r_is and then evaluate at chal_z
         let gamma_ris =
             linear_combination(&ri_s.iter().map(|i| &i.coeffs).collect::<Vec<_>>(), &gammas)
                 .ok_or(Error::NoPolynomialsGiven)?;
-        let gamma_ris_z = DensePolynomial::from_coefficients_vec(gamma_ris).evaluate(&challenge2);
+        let gamma_ris_z = DensePolynomial::from_coefficients_vec(gamma_ris).evaluate(&chal_z);
         let gamma_ris_z_pt = self.powers_of_g1[0].mul(gamma_ris_z);
 
         // Then do a single msm of the gammas and commitments
         let cms = commits.iter().map(|i| i.0).collect::<Vec<_>>();
         let gamma_cm_pt = super::curve_msm::<E::G1>(&cms, gammas.as_ref())?;
 
-        let f = gamma_cm_pt - gamma_ris_z_pt - proof.0.mul(zeros.evaluate(&challenge2));
+        let f = gamma_cm_pt - gamma_ris_z_pt - proof.0.mul(zeros_z);
 
         let g2 = self.powers_of_g2[0].into_group();
-        let g2x = self.powers_of_g2[0].into_group();
+        let g2x = self.powers_of_g2[1].into_group();
 
-        let x_minus_z = g2x - g2.mul(&challenge2);
+        let x_minus_z = g2x - g2.mul(&chal_z);
         Ok(E::pairing(f, self.powers_of_g2[0]) == E::pairing(proof.1, x_minus_z))
     }
 }
@@ -140,7 +141,9 @@ mod tests {
             .collect::<Vec<_>>();
         let challenge1 = Fr::rand(&mut test_rng());
         let challenge2 = Fr::rand(&mut test_rng());
-        let open = s.open(&coeffs, &points, challenge1, challenge2).expect("Open failed");
+        let open = s
+            .open(&coeffs, &points, challenge1, challenge2)
+            .expect("Open failed");
         assert_eq!(
             Ok(true),
             s.verify(&commits, &points, &evals, &open, challenge1, challenge2)
