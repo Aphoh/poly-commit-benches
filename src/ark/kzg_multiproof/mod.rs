@@ -105,7 +105,6 @@ pub(crate) fn lagrange_poly_inverses<F: Field>(points: &[F]) -> Vec<F> {
     for (j, x_j) in points.iter().enumerate() {
         let mut prod = F::one();
         for (k, x_k) in points.iter().enumerate() {
-            dbg!(prod.is_zero(), j, k);
             if j == k {
                 continue;
             }
