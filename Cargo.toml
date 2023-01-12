@@ -37,6 +37,10 @@ name = "pc_bench"
 harness = false
 
 [[bench]]
+name = "multi_proof_bench"
+harness = false
+
+[[bench]]
 name = "enc_bench"
 harness = false
 
