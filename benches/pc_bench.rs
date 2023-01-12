@@ -196,5 +196,5 @@ fn open_throughput<B: PcBench>() -> Throughput {
     Throughput::Bytes(B::bytes_per_elem() as u64)
 }
 
-criterion_group!(benches, open_bench, commit_bench, verify_bench, chunk_bench);
+criterion_group!(benches, chunk_bench, open_bench, commit_bench, verify_bench);
 criterion_main!(benches);

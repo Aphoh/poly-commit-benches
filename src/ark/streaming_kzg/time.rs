@@ -10,6 +10,7 @@ use ark_std_04::borrow::Borrow;
 use ark_std_04::ops::{Div, Mul};
 use ark_std_04::rand::RngCore;
 use ark_std_04::vec::Vec;
+use ark_std_04::{end_timer, start_timer};
 
 use crate::ark::streaming_kzg::{
     linear_combination, msm, powers, Commitment, EvaluationProof, VerifierKey,
@@ -145,11 +146,19 @@ impl<E: Pairing> CommitterKey<E> {
         eval_points: &[E::ScalarField],
     ) -> EvaluationProof<E> {
         // Computing the vanishing polynomial over eval_points
+        let t0 = start_timer!(|| "vanishing poly");
         let z_poly = vanishing_polynomial(eval_points);
+        end_timer!(t0);
 
+        let t1 = start_timer!(|| "Poly division");
         let f_poly = DensePolynomial::from_coefficients_slice(polynomial);
         let q_poly = f_poly.div(&z_poly);
-        EvaluationProof(self.commit(&q_poly.coeffs).0)
+        end_timer!(t1);
+
+        let t2 = start_timer!(|| "Eval proof");
+        let res = EvaluationProof(self.commit(&q_poly.coeffs).0);
+        end_timer!(t2);
+        res
     }
 
     /// Evaluate a set of polynomials at a set of points `eval_points`, and provide a single batched evaluation proof.
@@ -160,10 +169,23 @@ impl<E: Pairing> CommitterKey<E> {
         eval_points: &[E::ScalarField],
         eval_chal: &E::ScalarField,
     ) -> EvaluationProof<E> {
+        let t0 = start_timer!(|| "batch open multi points");
         assert!(eval_points.len() < self.powers_of_g2.len());
+
+        let t1 = start_timer!(|| "powers");
         let etas = powers(*eval_chal, polynomials.len());
+        end_timer!(t1);
+
+        let t2 = start_timer!(|| "batched poly");
         let batched_polynomial =
             linear_combination(polynomials, &etas).unwrap_or_else(|| vec![E::ScalarField::zero()]);
-        self.open_multi_points(&batched_polynomial, eval_points)
+        end_timer!(t2);
+
+        let t3 = start_timer!(|| "open multi points");
+        let res = self.open_multi_points(&batched_polynomial, eval_points);
+        end_timer!(t3);
+
+        end_timer!(t0);
+        res
     }
 }

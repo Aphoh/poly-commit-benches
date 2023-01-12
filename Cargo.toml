@@ -30,6 +30,7 @@ criterion = "0.4"
 
 [features]
 asm = ["ark-ff/asm"]
+print-trace = ["ark-std-04/print-trace"]
 
 [[bench]]
 name = "pc_bench"
