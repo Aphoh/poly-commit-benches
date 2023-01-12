@@ -3,7 +3,7 @@ use criterion::{
     Criterion, Throughput,
 };
 use poly_commit_benches::{
-    ark::{kzg_bench::*, marlin_bench::*, streaming_kzg_bench::StreamingKzgBench},
+    ark::{kzg_bench::*, marlin_bench::*},
     plonk_kzg::PlonkKZG,
     PcBench,
 };
@@ -49,74 +49,6 @@ pub fn verify_bench(c: &mut Criterion) {
     do_verify_bench::<KzgBls12_381Bench, _>(&mut group, "ark_kzg_bls12_381", &poly_degrees);
     do_verify_bench::<KzgBn254Bench, _>(&mut group, "ark_kzg_bn254", &poly_degrees);
     do_verify_bench::<PlonkKZG, _>(&mut group, "plonk_kzg_bls12_381", &poly_degrees);
-}
-
-pub fn chunk_bench(c: &mut Criterion) {
-    use ark_bls12_381_04::Bls12_381;
-    {
-        let mut group = c.benchmark_group("chunk_open");
-        do_open_bench::<StreamingKzgBench<Bls12_381, 1, 5>, _>(&mut group, "skzg_1_5_256", &[256]);
-        do_open_bench::<StreamingKzgBench<Bls12_381, 5, 1>, _>(&mut group, "skzg_5_1_256", &[256]);
-        do_open_bench::<StreamingKzgBench<Bls12_381, 5, 5>, _>(&mut group, "skzg_5_5_256", &[256]);
-        do_open_bench::<StreamingKzgBench<Bls12_381, 10, 5>, _>(
-            &mut group,
-            "skzg_10_5_256",
-            &[256],
-        );
-        do_open_bench::<StreamingKzgBench<Bls12_381, 5, 10>, _>(
-            &mut group,
-            "skzg_5_10_256",
-            &[256],
-        );
-        do_open_bench::<StreamingKzgBench<Bls12_381, 64, 64>, _>(
-            &mut group,
-            "skzg_64_64_256",
-            &[256],
-        );
-        do_open_bench::<StreamingKzgBench<Bls12_381, 128, 128>, _>(
-            &mut group,
-            "skzg_128_128_256",
-            &[256],
-        );
-    }
-    {
-        let mut group = c.benchmark_group("chunk_verify");
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 1, 5>, _>(
-            &mut group,
-            "skzg_1_5_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 5, 1>, _>(
-            &mut group,
-            "skzg_5_1_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 5, 5>, _>(
-            &mut group,
-            "skzg_5_5_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 10, 5>, _>(
-            &mut group,
-            "skzg_10_5_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 5, 10>, _>(
-            &mut group,
-            "skzg_5_10_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 64, 64>, _>(
-            &mut group,
-            "skzg_64_64_256",
-            &[256],
-        );
-        do_verify_bench::<StreamingKzgBench<Bls12_381, 128, 128>, _>(
-            &mut group,
-            "skzg_128_128_256",
-            &[256],
-        );
-    }
 }
 
 pub fn do_open_bench<B: PcBench, M: Measurement>(
@@ -196,5 +128,5 @@ fn open_throughput<B: PcBench>() -> Throughput {
     Throughput::Bytes(B::bytes_per_elem() as u64)
 }
 
-criterion_group!(benches, chunk_bench, open_bench, commit_bench, verify_bench);
+criterion_group!(benches, open_bench, commit_bench, verify_bench);
 criterion_main!(benches);

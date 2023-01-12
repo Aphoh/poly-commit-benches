@@ -4,22 +4,12 @@ use criterion::{
     Criterion, Throughput,
 };
 use poly_commit_benches::{
-    ark::{
-        kzg_multiproof_bench::{Multiproof1Bench, Multiproof2Bench},
-        streaming_kzg_bench::StreamingKzgBench,
-    },
+    ark::kzg_multiproof_bench::{Multiproof1Bench, Multiproof2Bench},
     PcBench,
 };
 
 pub fn open_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("open");
-    do_open_bench::<StreamingKzgBench<Bls12_381, 4, 4>, _>(&mut group, "skzg_4_4", &[256]);
-    do_open_bench::<StreamingKzgBench<Bls12_381, 8, 8>, _>(&mut group, "skzg_8_8", &[256]);
-    do_open_bench::<StreamingKzgBench<Bls12_381, 16, 16>, _>(&mut group, "skzg_16_16", &[256]);
-    do_open_bench::<StreamingKzgBench<Bls12_381, 32, 32>, _>(&mut group, "skzg_32_32", &[256]);
-    do_open_bench::<StreamingKzgBench<Bls12_381, 64, 64>, _>(&mut group, "skzg_64_64", &[256]);
-    do_open_bench::<StreamingKzgBench<Bls12_381, 128, 128>, _>(&mut group, "skzg_128_128", &[256]);
-
     do_open_bench::<Multiproof1Bench<Bls12_381, 4, 4>, _>(&mut group, "mp1_4_4", &[256]);
     do_open_bench::<Multiproof1Bench<Bls12_381, 8, 8>, _>(&mut group, "mp1_8_8", &[256]);
     do_open_bench::<Multiproof1Bench<Bls12_381, 16, 16>, _>(&mut group, "mp1_16_16", &[256]);
@@ -37,17 +27,6 @@ pub fn open_bench(c: &mut Criterion) {
 
 pub fn verify_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("verify");
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 4, 4>, _>(&mut group, "skzg_4_4", &[256]);
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 8, 8>, _>(&mut group, "skzg_8_8", &[256]);
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 16, 16>, _>(&mut group, "skzg_16_16", &[256]);
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 32, 32>, _>(&mut group, "skzg_32_32", &[256]);
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 64, 64>, _>(&mut group, "skzg_64_64", &[256]);
-    do_verify_bench::<StreamingKzgBench<Bls12_381, 128, 128>, _>(
-        &mut group,
-        "skzg_128_128",
-        &[256],
-    );
-
     do_verify_bench::<Multiproof1Bench<Bls12_381, 4, 4>, _>(&mut group, "mp1_4_4", &[256]);
     do_verify_bench::<Multiproof1Bench<Bls12_381, 8, 8>, _>(&mut group, "mp1_8_8", &[256]);
     do_verify_bench::<Multiproof1Bench<Bls12_381, 16, 16>, _>(&mut group, "mp1_16_16", &[256]);
