@@ -57,8 +57,8 @@ pub trait GridBench {
 
 #[cfg(test)]
 fn test_works<T: PcBench>() {
-    const BASE_DEG: usize = 2usize.pow(8);
-    const TRIM_DEG: usize = 2usize.pow(6);
+    const BASE_DEG: usize = 2usize.pow(12);
+    const TRIM_DEG: usize = 2usize.pow(10);
     let mut s = T::setup(BASE_DEG);
     let t = T::trim(&s, TRIM_DEG);
     let (poly, point, value) = T::rand_poly(&mut s, TRIM_DEG);

@@ -31,7 +31,7 @@ impl<E: Pairing> Setup<E> {
         let x_powers = gen_powers(x, num_scalars);
 
         let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), rng);
-        let powers_of_g2 = gen_curve_powers::<E::G2>(x_powers[..max_pts].as_ref(), rng);
+        let powers_of_g2 = gen_curve_powers::<E::G2>(x_powers[..max_pts + 1].as_ref(), rng);
 
         Setup {
             powers_of_g1,
