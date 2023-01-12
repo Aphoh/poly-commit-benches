@@ -29,7 +29,7 @@ ark-bls12-377 = "0.3"
 criterion = "0.4"
 
 [features]
-asm = ["ark-ff/asm"]
+asm = ["ark-ff-04/asm"]
 print-trace = ["ark-std-04/print-trace"]
 
 [[bench]]
