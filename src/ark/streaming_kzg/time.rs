@@ -189,3 +189,67 @@ impl<E: Pairing> CommitterKey<E> {
         res
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ark_bls12_381_04::Fr;
+    use ark_poly_04::polynomial::univariate::DenseOrSparsePolynomial;
+    use ark_poly_04::Polynomial;
+    use ark_std_04::test_rng;
+
+    use super::*;
+    #[test]
+    fn test_single_remainder_sanity() {
+        let poly = DensePolynomial::<Fr>::rand(50, &mut test_rng());
+        let pts = (0..10)
+            .map(|_| Fr::rand(&mut test_rng()))
+            .collect::<Vec<_>>();
+        let vp = vanishing_polynomial(&pts);
+        for p in &pts {
+            assert_eq!(vp.evaluate(&p), Fr::zero());
+        }
+
+        let (_, rem) = pdiv(&poly, &vp);
+        for p in &pts {
+            assert_eq!(rem.evaluate(&p), poly.evaluate(&p));
+        }
+    }
+
+    fn pdiv(
+        f: &DensePolynomial<Fr>,
+        other: &DensePolynomial<Fr>,
+    ) -> (DensePolynomial<Fr>, DensePolynomial<Fr>) {
+        let f = DenseOrSparsePolynomial::from(f);
+        let other = DenseOrSparsePolynomial::from(other);
+        f.divide_with_q_and_r(&other).expect("Div failed")
+    }
+
+    #[test]
+    fn test_sum_remainder_sanity() {
+        let polys = (0..5)
+            .map(|_| DensePolynomial::<Fr>::rand(50, &mut test_rng()).coeffs)
+            .collect::<Vec<Vec<Fr>>>();
+        let pts = (0..10)
+            .map(|_| Fr::rand(&mut test_rng()))
+            .collect::<Vec<_>>();
+        let chal = Fr::rand(&mut test_rng());
+        let powers = powers(chal, polys.len());
+
+        // Compute the remainders just by doing some aggregate math
+        let vp = vanishing_polynomial(&pts);
+        let agg_poly =
+            DensePolynomial::from_coefficients_vec(linear_combination(&polys, &powers).unwrap());
+
+        let (_, agg_rem) = pdiv(&agg_poly, &vp);
+
+        // Now compute each of the remainders separately and aggregate
+        let mut rems = Vec::new();
+        for p in polys {
+            let (_, remi) = pdiv(&DensePolynomial::from_coefficients_vec(p), &vp);
+            rems.push(remi.coeffs);
+        }
+        let rems_poly = linear_combination(&rems, &powers).unwrap();
+
+        assert_eq!(rems_poly, agg_rem.coeffs);
+    }
+}
