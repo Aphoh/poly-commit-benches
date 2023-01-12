@@ -8,12 +8,13 @@ pub trait PcBench {
     type Trimmed;
     type Poly;
     type Point;
+    type Eval;
     type Commit;
     type Proof;
     fn setup(max_degree: usize) -> Self::Setup;
     fn trim(s: &Self::Setup, supported_degree: usize) -> Self::Trimmed;
     // Random (poly, z, poly(z))
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point);
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Eval);
     fn bytes_per_elem() -> usize;
     fn commit(t: &Self::Trimmed, s: &mut Self::Setup, p: &Self::Poly) -> Self::Commit;
     fn open(
@@ -26,7 +27,7 @@ pub trait PcBench {
         t: &Self::Trimmed,
         c: &Self::Commit,
         proof: &Self::Proof,
-        value: &Self::Point,
+        value: &Self::Eval,
         pt: &Self::Point,
     ) -> bool;
 }

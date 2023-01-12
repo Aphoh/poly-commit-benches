@@ -26,6 +26,7 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> PcBench for ArkPcBench<F, P
     type Trimmed = Trimmed<F, PC>;
     type Poly = Poly<F>;
     type Point = F;
+    type Eval = F;
     type Commit = Commitment<F, PC>;
     type Proof = (PC::Proof, Self::Point);
 
@@ -40,7 +41,7 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> PcBench for ArkPcBench<F, P
         PC::trim(&s.params, supported_degree, 0, None).expect("Failed to trim")
     }
 
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point) {
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Eval) {
         let poly = Self::Poly::rand(d, &mut s.rng);
         let pt = Self::Point::rand(&mut s.rng);
         let value = poly.evaluate(&pt);
@@ -85,7 +86,7 @@ impl<F: Field, PC: PolynomialCommitment<F, Poly<F>>> PcBench for ArkPcBench<F, P
         t: &Self::Trimmed,
         c: &Self::Commit,
         proof: &Self::Proof,
-        value: &Self::Point,
+        value: &Self::Eval,
         pt: &Self::Point,
     ) -> bool {
         PC::check(

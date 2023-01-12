@@ -19,6 +19,7 @@ impl PcBench for PlonkKZG {
     type Trimmed = (CommitKey, OpeningKey);
     type Poly = Polynomial;
     type Point = BlsScalar; // This is the i-th root of unity
+    type Eval = BlsScalar; 
     type Commit = Commitment;
     type Proof = Commitment;
     fn setup(max_degree: usize) -> Self::Setup {
@@ -69,7 +70,7 @@ impl PcBench for PlonkKZG {
         )
     }
 
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point) {
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Eval) {
         let pt = Self::Point::random(&mut s.1);
         let poly = Self::Poly::rand(d, &mut s.1);
         let value = poly.evaluate(&pt);

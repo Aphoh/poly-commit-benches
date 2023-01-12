@@ -27,6 +27,7 @@ impl<E: PairingEngine> PcBench for KzgPcBench<E> {
     type Trimmed = (Powers<E>, VerifierKey<E>);
     type Poly = DensePolynomial<E::Fr>;
     type Point = E::Fr;
+    type Eval = E::Fr;
     type Commit = Commitment<E>;
     type Proof = Proof<E>;
     fn setup(max_degree: usize) -> Self::Setup {
@@ -41,7 +42,7 @@ impl<E: PairingEngine> PcBench for KzgPcBench<E> {
         <KZG10<E, Self::Poly>>::trim(&s.params, supported_degree).expect("Trim failed")
     }
 
-    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Point) {
+    fn rand_poly(s: &mut Self::Setup, d: usize) -> (Self::Poly, Self::Point, Self::Eval) {
         let poly = DensePolynomial {
             coeffs: (0..=d).map(|_| E::Fr::rand(&mut s.rng)).collect(),
         };
@@ -71,7 +72,7 @@ impl<E: PairingEngine> PcBench for KzgPcBench<E> {
         t: &Self::Trimmed,
         c: &Self::Commit,
         proof: &Self::Proof,
-        value: &Self::Point,
+        value: &Self::Eval,
         pt: &Self::Point,
     ) -> bool {
         <KZG10<E, Self::Poly>>::check(&t.1, &c, *pt, *value, proof).expect("Check failed")
